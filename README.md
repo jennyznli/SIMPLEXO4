@@ -16,19 +16,12 @@ Performs variant annotation and compiles a genome-wide CSV file with annotations
 
 #### Config/Inputs
 
-+---------------------+---------------------------------------------------------+---------------+
-|                     |                                                         |               |
-+=====================+=========================================================+===============+
-| **Key**             | **Description**                                         | **Required?** |
-+---------------------+---------------------------------------------------------+---------------+
-| `input.chromosomes` | Per-chromosome file path template (`{CHR}` placeholder) | yes           |
-+---------------------+---------------------------------------------------------+---------------+
-| `input.samples`     | Input file path w/ all case + control IDs, one per line | yes           |
-+---------------------+---------------------------------------------------------+---------------+
-| `input.sex_info`    | No header FID/IID/SEX file (1=male, 2=female)           | yes           |
-+---------------------+---------------------------------------------------------+---------------+
-| `input.targets`     | Optional BED/region file to restrict sites              | no            |
-+---------------------+---------------------------------------------------------+---------------+
+| **Key** | **Description** | **Required?** |
+|---|---|---|
+| `input.chromosomes` | Per-chromosome file path template (`{CHR}` placeholder) | yes |
+| `input.samples` | Input file path w/ all case + control IDs, one per line | yes |
+| `input.sex_info` | No header FID/IID/SEX file (1=male, 2=female) | yes |
+| `input.targets` | Optional BED/region file to restrict sites | no |
 
 #### **Rules**
 
@@ -80,53 +73,23 @@ Full Regenie pipeline: builds the sample list, prepares Step 1 genotypes (array 
 
 #### **Config/Inputs**
 
-+----------------------------------------------------+--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------+--------------------------------------------------+
-| Key                                                | Description                                                                                                                                                                                | Required?                                        |
-+====================================================+============================================================================================================================================================================================+==================================================+
-| `project.name`                                     | Naming prefix included in all outputs                                                                                                                                                      | yes                                              |
-+----------------------------------------------------+--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------+--------------------------------------------------+
-| `project.run_dir`                                  | Base directory for `preprocess/`, `input/`, `output/`, `logs/`                                                                                                                             | no (default `.`)                                 |
-+----------------------------------------------------+--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------+--------------------------------------------------+
-| `input.vep_file`                                   | Combined VEP annotation CSV file (output from `select_variants_annotate.smk)`                                                                                                              | yes                                              |
-+----------------------------------------------------+--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------+--------------------------------------------------+
-| `input.exome_chr`                                  | Per-chromosome exome pgen/psam path template (used for Step 2 genotypes, and Step 1 if `input.step1.input_type` is set to `exome`                                                          | yes                                              |
-+----------------------------------------------------+--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------+--------------------------------------------------+
-| `input.pheno_file`                                 | Pre-built multi-phenotype TSV file creates separate outputs for each phenotype. Requires FID, IID phenotype columns. Defaults to single `STATUS` column built from cases/controls if empty | no                                               |
-+----------------------------------------------------+--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------+--------------------------------------------------+
-| `input.phenotypes`                                 | Phenotype column names in `pheno_file` in report order                                                                                                                                     | no (default `[STATUS]`)                          |
-|                                                    |                                                                                                                                                                                            |                                                  |
-|                                                    | SIMPLEXO4: `[Overall, Under50, FamilyHistory, Malignant, ERPos, ERNeg]`                                                                                                                    |                                                  |
-+----------------------------------------------------+--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------+--------------------------------------------------+
-| `input.step1.input_type`                           | Determines which type of data to use for Step 1.                                                                                                                                           | yes                                              |
-|                                                    |                                                                                                                                                                                            |                                                  |
-|                                                    | - `"array"` : uses PMBB's common SNPs file built from imputed genotype data (see PMBB's Freeze 4.0 Documentation)                                                                          |                                                  |
-|                                                    |                                                                                                                                                                                            |                                                  |
-|                                                    | - `"exome"` : uses PMBB's per-chromosome exome VCFs                                                                                                                                        |                                                  |
-|                                                    |                                                                                                                                                                                            |                                                  |
-|                                                    | SIMPLEXO4: used `array`                                                                                                                                                                    |                                                  |
-+----------------------------------------------------+--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------+--------------------------------------------------+
-| `input.step1.array_all`                            | PLINK bfile prefix for the array QC step                                                                                                                                                   | yes if `input.step1.input_type` set to `array`   |
-+----------------------------------------------------+--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------+--------------------------------------------------+
-| `input.cases`, `input.controls`                    | Sample list (one ID per line) for cases and controls, used to builds build the base sample set from these regardless                                                                       | yes                                              |
-+----------------------------------------------------+--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------+--------------------------------------------------+
-| `input.step1_covariates`, `input.step2_covariates` | Covariate TSV files to be used in Step 1 and Step 2. Requires header; FID and IID as the first 2 columns.                                                                                  | yes                                              |
-|                                                    |                                                                                                                                                                                            |                                                  |
-|                                                    | SIMPLEXO4: `FID IID Age batch exome_PC1 exome_PC2 exome_PC3 exome_PC4 exome_PC5 exome_PC6`                                                                                                 |                                                  |
-+----------------------------------------------------+--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------+--------------------------------------------------+
-| `input.sex_info`                                   | Sex TSV file without header to update genotypes. Three columns should be: FID, IID, sex                                                                                                    | yes                                              |
-+----------------------------------------------------+--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------+--------------------------------------------------+
-| `input.mask_file`                                  | Custom mask definitions for regenie. First col is mask name, second is comma-separated components.                                                                                         | no                                               |
-|                                                    |                                                                                                                                                                                            |                                                  |
-|                                                    | SIMPLEXO4: Defaults to `M1 pathogenic` / `M2 pathogenic,vus`                                                                                                                               |                                                  |
-+----------------------------------------------------+--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------+--------------------------------------------------+
-| `input.gene_consequence_exclude`                   | Specific exclusion rules dropped before pathogenic/VUS filtering. Formatted as GENE x consequence                                                                                          | no (default `mask_gene_consequence_exclude.txt`) |
-|                                                    |                                                                                                                                                                                            |                                                  |
-|                                                    | SIMPLEXO4: CHEK2 missense_variant                                                                                                                                                          |                                                  |
-+----------------------------------------------------+--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------+--------------------------------------------------+
-| `input.negative_control_blacklist`                 | Variant IDs to scrub from the M4 synonymous negative-control mask                                                                                                                          | no                                               |
-+----------------------------------------------------+--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------+--------------------------------------------------+
-| `input.update_ids`                                 | ID remap file for `array_qc`, only used on the array Step 1 path. Formatted with first 2 cols as FID and IID of original, then next 2 cols as FID and IID to remap to.                     | no (default `input/array_update_ids.txt`)        |
-+----------------------------------------------------+--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------+--------------------------------------------------+
+| Key | Description | Required? |
+|---|---|---|
+| `project.name` | Naming prefix included in all outputs | yes |
+| `project.run_dir` | Base directory for `preprocess/`, `input/`, `output/`, `logs/` | no (default `.`) |
+| `input.vep_file` | Combined VEP annotation CSV file (output from `select_variants_annotate.smk`) | yes |
+| `input.exome_chr` | Per-chromosome exome pgen/psam path template (used for Step 2 genotypes, and Step 1 if `input.step1.input_type` is set to `exome`) | yes |
+| `input.pheno_file` | Pre-built multi-phenotype TSV file creates separate outputs for each phenotype. Requires FID, IID phenotype columns. Defaults to single `STATUS` column built from cases/controls if empty | no |
+| `input.phenotypes` | Phenotype column names in `pheno_file` in report order.<br>SIMPLEXO4: `[Overall, Under50, FamilyHistory, Malignant, ERPos, ERNeg]` | no (default `[STATUS]`) |
+| `input.step1.input_type` | Determines which type of data to use for Step 1.<br>`"array"`: uses PMBB's common SNPs file built from imputed genotype data (see PMBB's Freeze 4.0 Documentation)<br>`"exome"`: uses PMBB's per-chromosome exome VCFs<br>SIMPLEXO4: used `array` | yes |
+| `input.step1.array_all` | PLINK bfile prefix for the array QC step | yes if `input.step1.input_type` set to `array` |
+| `input.cases`, `input.controls` | Sample list (one ID per line) for cases and controls, used to build the base sample set from these regardless | yes |
+| `input.step1_covariates`, `input.step2_covariates` | Covariate TSV files to be used in Step 1 and Step 2. Requires header; FID and IID as the first 2 columns.<br>SIMPLEXO4: `FID IID Age batch exome_PC1 exome_PC2 exome_PC3 exome_PC4 exome_PC5 exome_PC6` | yes |
+| `input.sex_info` | Sex TSV file without header to update genotypes. Three columns should be: FID, IID, sex | yes |
+| `input.mask_file` | Custom mask definitions for regenie. First col is mask name, second is comma-separated components.<br>SIMPLEXO4: Defaults to `M1 pathogenic` / `M2 pathogenic,vus` | no |
+| `input.gene_consequence_exclude` | Specific exclusion rules dropped before pathogenic/VUS filtering. Formatted as GENE x consequence.<br>SIMPLEXO4: CHEK2 missense_variant | no (default `mask_gene_consequence_exclude.txt`) |
+| `input.negative_control_blacklist` | Variant IDs to scrub from the M4 synonymous negative-control mask | no |
+| `input.update_ids` | ID remap file for `array_qc`, only used on the array Step 1 path. Formatted with first 2 cols as FID and IID of original, then next 2 cols as FID and IID to remap to. | no (default `input/array_update_ids.txt`) |
 
 #### **Submission**
 
@@ -225,21 +188,13 @@ bsub -N -J array4 -eo logs/array4.e -oo logs/array4.o \
 
 ## Dependencies
 
-+----------------------------------+-------------------------------------------------------------------+-----------------------------+
-|                                  |                                                                   |                             |
-+==================================+===================================================================+=============================+
-| Script                           | **Purpose**                                                       | **Used by**                 |
-+----------------------------------+-------------------------------------------------------------------+-----------------------------+
-| `vep_vcf_parser.py`              | Parses VEP-annotated VCF -\> report CSV                           | select_variant_annotate.smk |
-+----------------------------------+-------------------------------------------------------------------+-----------------------------+
-| `preprocess_regenie.py`          | Builds annotation/set/mask/covariate/pheno files from the VEP CSV | regenie.smk                 |
-+----------------------------------+-------------------------------------------------------------------+-----------------------------+
-| `mask_variant_stats.py`          | Per-mask, per-gene carrier/variant stats for the report           | regenie.smk                 |
-+----------------------------------+-------------------------------------------------------------------+-----------------------------+
-| `build_regenie_report_tables.py` | Assembles top-genes/variant-contrib/carrier tables for the report | regenie.smk                 |
-+----------------------------------+-------------------------------------------------------------------+-----------------------------+
-| `report_regenie.Rmd`             | Renders the final per-phenotype HTML report                       | regenie.smk                 |
-+----------------------------------+-------------------------------------------------------------------+-----------------------------+
+| Script | **Purpose** | **Used by** |
+|---|---|---|
+| `vep_vcf_parser.py` | Parses VEP-annotated VCF -> report CSV | select_variant_annotate.smk |
+| `preprocess_regenie.py` | Builds annotation/set/mask/covariate/pheno files from the VEP CSV | regenie.smk |
+| `mask_variant_stats.py` | Per-mask, per-gene carrier/variant stats for the report | regenie.smk |
+| `build_regenie_report_tables.py` | Assembles top-genes/variant-contrib/carrier tables for the report | regenie.smk |
+| `report_regenie.Rmd` | Renders the final per-phenotype HTML report | regenie.smk |
 
 #### vep_vcf_parser.py
 
