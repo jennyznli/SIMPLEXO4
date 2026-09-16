@@ -17,7 +17,7 @@ Performs variant annotation and compiles a genome-wide CSV file with annotations
 #### Config/Inputs
 
 | **Key** | **Description** | **Required?** |
-|---|---|---|
+|----|----|----|
 | `input.chromosomes` | Per-chromosome file path template (`{CHR}` placeholder) | yes |
 | `input.samples` | Input file path w/ all case + control IDs, one per line | yes |
 | `input.sex_info` | No header FID/IID/SEX file (1=male, 2=female) | yes |
@@ -74,7 +74,7 @@ Full Regenie pipeline: builds the sample list, prepares Step 1 genotypes (array 
 #### **Config/Inputs**
 
 | Key | Description | Required? |
-|---|---|---|
+|----|----|----|
 | `project.name` | Naming prefix included in all outputs | yes |
 | `project.run_dir` | Base directory for `preprocess/`, `input/`, `output/`, `logs/` | no (default `.`) |
 | `input.vep_file` | Combined VEP annotation CSV file (output from `select_variants_annotate.smk`) | yes |
@@ -189,8 +189,8 @@ bsub -N -J array4 -eo logs/array4.e -oo logs/array4.o \
 ## Dependencies
 
 | Script | **Purpose** | **Used by** |
-|---|---|---|
-| `vep_vcf_parser.py` | Parses VEP-annotated VCF -> report CSV | select_variant_annotate.smk |
+|----|----|----|
+| `vep_vcf_parser.py` | Parses VEP-annotated VCF -\> report CSV | select_variant_annotate.smk |
 | `preprocess_regenie.py` | Builds annotation/set/mask/covariate/pheno files from the VEP CSV | regenie.smk |
 | `mask_variant_stats.py` | Per-mask, per-gene carrier/variant stats for the report | regenie.smk |
 | `build_regenie_report_tables.py` | Assembles top-genes/variant-contrib/carrier tables for the report | regenie.smk |

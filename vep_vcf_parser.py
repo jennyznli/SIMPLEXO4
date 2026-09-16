@@ -291,7 +291,7 @@ class LofLevelAnnot:
             return a
 
         def is_quiet_consequence(vc):
-            return any(x in vc for x in ['stream','UTR','intron','synonymous'])
+            return any(x in vc for x in ['stream','UTR','intron'])
 
         def gnomad_rare(threshold=0.01):
             af=self.fields['gnomAD.MAX_AF']
