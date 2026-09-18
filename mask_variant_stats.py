@@ -13,7 +13,7 @@ import tempfile
 import pandas as pd
 
 VEP_COLS=['ID','Gene','Variant.LoF_level','Variant.Class','Variant.Consequence',
-          'HGVSc','HGVSp','ClinVar.SIG','AutoGVP']
+          'HGVSc','HGVSp','ClinVar.SIG','AutoGVP','LOFTEE.lof']
 
 
 def get_args():

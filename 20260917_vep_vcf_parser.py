@@ -299,29 +299,6 @@ class LofLevelAnnot:
                 return False
             return all(any(x in t for x in ['stream','UTR','intron']) for t in terms)
 
-        def gnomad_rare(threshold=0.01):
-            af=self.fields['gnomAD.MAX_AF']
-            if af in ['.','']:
-                return True
-            return float(af)<=threshold
-
-        def is_frameshift_stop_not_last_exon():
-            vc=self.fields['Variant.Consequence']
-            en=self.fields['EXON']
-            if not ('frameshift' in vc or 'stop_gained' in vc):
-                return False
-            if '|' not in en:
-                return False
-            i,j=en.split('|')
-            return i!=j
-
-        def is_canonical_splice():
-            vc=self.fields['Variant.Consequence']
-            if 'splice' not in vc:
-                return False
-            p=re.compile(r'^c\.\d+([-+][12])([ACGT>]+|del|ins|dup)?$')
-            return bool(p.fullmatch(self.fields['HGVSc']))
-
         def is_polyQE_indel():
             vc=self.fields['Variant.Consequence']
             if 'inframe' not in vc:
@@ -348,6 +325,8 @@ class LofLevelAnnot:
 
         def check_level_two():
             if not (is_protein_coding() and is_mane()):
+                return False
+            if self.fields['LOFTEE.lof']=='LC':
                 return False
             vc=self.fields['Variant.Consequence']
             if not any(x in vc for x in ['protein_altering','inframe','start_lost','missense',
@@ -414,7 +393,7 @@ class VEPannotation(BasicInfoAnnot,MANEAnnot,GnomadAnnot,ClinvarAnnot,SpliceAIAn
             self.fields['FILTER']=filter_str.replace("MONOALLELIC",'.')
         # vcfpy: ID is list of strings
         self.fields['ID']=f"{';'.join(record.ID)}" if record.ID and len(record.ID)>0 else "."
-        
+
         if no_sample:
             #Skip sample data extraction for no_sample mode
             self.calls=[]
@@ -428,7 +407,7 @@ class VEPannotation(BasicInfoAnnot,MANEAnnot,GnomadAnnot,ClinvarAnnot,SpliceAIAn
                 # In single mode, only process the specified sample
                 if single_sample and sample_name!=single_sample:
                     continue
-                
+
                 try:
                     # vcfpy: GT is in call.data dict
                     genotype=call.data.get('GT')
@@ -441,7 +420,7 @@ class VEPannotation(BasicInfoAnnot,MANEAnnot,GnomadAnnot,ClinvarAnnot,SpliceAIAn
                     print(f"Error parsing genotype for sample {sample_name} at {record.CHROM}:{record.POS}: {e}")
                     print(f"  Raw record: {record}")
                     genotype='./.'
-                
+
                 # vcfpy: DP accessed via call.data['DP']
                 dp=0
                 try:
@@ -450,7 +429,7 @@ class VEPannotation(BasicInfoAnnot,MANEAnnot,GnomadAnnot,ClinvarAnnot,SpliceAIAn
                         dp=int(dp_val)
                 except (ValueError,TypeError):
                     dp=0
-                
+
                 # Handle AD field - vcfpy AD is list [ref, alt1, alt2, ...]
                 alt_depth=0
                 ref_depth=0
@@ -464,11 +443,11 @@ class VEPannotation(BasicInfoAnnot,MANEAnnot,GnomadAnnot,ClinvarAnnot,SpliceAIAn
                             ref_depth=int(ad[0]) if ad[0] is not None else 0
                 except (ValueError,TypeError,IndexError):
                     pass
-                
+
                 # Fallback: calculate ref_depth from DP if AD not available
                 if ref_depth==0 and dp>0 and alt_depth==0:
                     ref_depth=max(0,dp-alt_depth)
-                
+
                 sample_data.append({
                     'sample':sample_name,
                     'genotype':genotype,
@@ -476,7 +455,7 @@ class VEPannotation(BasicInfoAnnot,MANEAnnot,GnomadAnnot,ClinvarAnnot,SpliceAIAn
                     'DP':dp,
                     'AD':[ref_depth,alt_depth]
                 })
-            
+
             if tumor_normal:
                 self.calls=self.__tumor_normal__(sample_data,tumor_id)
             else:
@@ -621,7 +600,7 @@ def process_annotation(vep_data,csq_dict,tumor_normal,single,tumor,normal,sample
     vep_data.mavedb(csq_dict)
     vep_data.loftee(csq_dict)
     vep_data.lof_level()
-    
+
     # Set sample IDs based on mode
     if tumor_normal and vep_data.calls:
         vep_data.calls[0]['Tumor.ID']=tumor
@@ -713,7 +692,7 @@ def main(argv=None):
     if args.include_vlr:
         for x in ['PROB_SOMATIC_TUMOR','PROB_GERMLINE','PROB_SOMATIC_NORMAL','PROB_FFPE_ARTIFACT','PROB_ARTIFACT','PROB_ABSENT']:
             header.append(x)
-    
+
     if args.include_ref:
         ref_call=True
     else:
@@ -748,10 +727,10 @@ def main(argv=None):
                 elif desc:
                     ann_header=desc.split(' ')[-1].rstrip('">').split('|')
                 break
-    
+
     if not ann_header:
         raise ValueError("ANN header not found in VCF file")
-    
+
     with open(args.output_csv,'w') as outfile:
         writer=csv.DictWriter(outfile,fieldnames=header,delimiter=',',restval='.',extrasaction='ignore',quoting=csv.QUOTE_NONNUMERIC,dialect='excel')
         writer.writeheader()
@@ -779,7 +758,7 @@ def main(argv=None):
                 # Unexpected error - print and re-raise
                 print(f"Unexpected error at variant {variant_count}: {e}")
                 raise
-            
+
             variant_count+=1
             if variant_count % 10000 == 0:
                 print(f"Processed {variant_count} variants...")
@@ -898,10 +877,3 @@ def main(argv=None):
 
 if __name__=='__main__':
     main()
-
-#try:
-#        snakemake
-#    except NameError:
-#        main(parse_arguments())
-#    else:
-#        main(parse_snakemake())
