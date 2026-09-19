@@ -274,102 +274,39 @@ class BasicInfoAnnot:
             self.fields[field]=value
         self.fields['Variant.LoF_level']='.'
 
+# Gln/Glu deletions/duplications
+POLYQE_RE=re.compile(r'p\.[GQ]l[nu][0-9]+(?:_[GQ]l[nu][0-9]+)?(?:del|dup)')
+
 class LofLevelAnnot:
     def lof_level(self):
-        def is_protein_coding():
-            return 'protein_coding' in self.fields['Bio.type'].lower()
+        f=self.fields
+        autogvp=f['AutoGVP'].lower()
+        loftee=f['LOFTEE.lof']
+        vc=f['Variant.Consequence']
+        missing=autogvp in ['','.']
 
-        def is_mane():
-            return self.fields['MANE.Select'] not in ['','.'] or self.fields['MANE.PlusClinical'] not in ['','.']
-
-        def autogvp_status():
-            a=self.fields['AutoGVP'].lower()
-            if 'pathogenic' in a:
-                return 'PLP'
-            if a in ['','.']:
-                return 'MISSING'
-            return a
-
-        def is_quiet_consequence(vc):
-            # ONLY quiet if every '&'-joined consequence term is stream/UTR/intron -
-            # a variant that's also e.g. missense on the same transcript should not
-            # be demoted just because one of its other terms is quiet.
-            terms=[t for t in vc.split('&') if t]
-            if not terms:
-                return False
-            return all(any(x in t for x in ['stream','UTR','intron']) for t in terms)
-
-        def gnomad_rare(threshold=0.01):
-            af=self.fields['gnomAD.MAX_AF']
-            if af in ['.','']:
-                return True
-            return float(af)<=threshold
-
-        def is_frameshift_stop_not_last_exon():
-            vc=self.fields['Variant.Consequence']
-            en=self.fields['EXON']
-            if not ('frameshift' in vc or 'stop_gained' in vc):
-                return False
-            if '|' not in en:
-                return False
-            i,j=en.split('|')
-            return i!=j
-
-        def is_canonical_splice():
-            vc=self.fields['Variant.Consequence']
-            if 'splice' not in vc:
-                return False
-            p=re.compile(r'^c\.\d+([-+][12])([ACGT>]+|del|ins|dup)?$')
-            return bool(p.fullmatch(self.fields['HGVSc']))
+        def spliceai_high():
+            scores=[f['SpliceAI.DS_AG'],f['SpliceAI.DS_AL'],f['SpliceAI.DS_DG'],f['SpliceAI.DS_DL']]
+            return any(float(s)>0.5 for s in scores if s not in ['','.'])
 
         def is_polyQE_indel():
-            vc=self.fields['Variant.Consequence']
-            if 'inframe' not in vc:
-                return False
-            # Match Gln/Glu deletions/duplications
-            p=re.compile(r'p\.[GQ]l[nu][0-9]+(?:_[GQ]l[nu][0-9]+)?(?:del|dup)')
-            return bool(p.match(self.fields['HGVSp']))
+            return 'inframe' in vc and bool(POLYQE_RE.match(f['HGVSp']))
 
-        def check_level_four():
-            return ('benign' in self.fields['AutoGVP'].lower() or
-                   'benign' in self.fields['ClinVar.SIG'].lower() or
-                   not is_protein_coding())
-
-        def check_level_one():
-            if not (is_protein_coding() and is_mane()):
-                return None
-            #evaluate in order
-            if self.fields['LOFTEE.lof']=='HC':
-                return '1'
-            status=autogvp_status()
-            if status=='PLP':
-                return '2' if is_quiet_consequence(self.fields['Variant.Consequence']) else '1'
-            return None
-
-        def check_level_two():
-            if not (is_protein_coding() and is_mane()):
-                return False
-            vc=self.fields['Variant.Consequence']
-            if not any(x in vc for x in ['protein_altering','inframe','start_lost','missense',
-                    'frameshift','stop_gained','synonymous','splice']):
-                return False
-            matched=(
-                any(float(i)>0.5 for i in [self.fields['SpliceAI.DS_AG'],self.fields['SpliceAI.DS_AL'],
-                    self.fields['SpliceAI.DS_DG'],self.fields['SpliceAI.DS_DL']] if i not in ['','.']) or
-                ('missense' in vc and self.fields['AM.class'].lower()=='likely_pathogenic')
-            )
-            return matched and not is_polyQE_indel()
-
-        if check_level_four():
-            self.fields['Variant.LoF_level']='4'
+        if ('benign' in autogvp or 'benign' in f['ClinVar.SIG'].lower()
+                or 'protein_coding' not in f['Bio.type'].lower()):
+            level='4'
+        elif f['MANE.Select'] in ['','.'] and f['MANE.PlusClinical'] in ['','.']:
+            level='3'
+        elif 'pathogenic' in autogvp or (missing and loftee=='HC'):
+            level='1'
+        elif ((missing or 'uncertain' in autogvp) and loftee!='LC' and not is_polyQE_indel()
+                and (loftee=='HC'
+                     or ('missense' in vc and f['AM.class'].lower()=='likely_pathogenic')
+                     or spliceai_high())):
+            level='2'
         else:
-            lvl1=check_level_one()
-            if lvl1 is not None:
-                self.fields['Variant.LoF_level']=lvl1
-            elif check_level_two():
-                self.fields['Variant.LoF_level']='2'
-            else:
-                self.fields['Variant.LoF_level']='3'
+            level='3'
+        f['Variant.LoF_level']=level
 
 
 class VEPannotation(BasicInfoAnnot,MANEAnnot,GnomadAnnot,ClinvarAnnot,SpliceAIAnnot,
